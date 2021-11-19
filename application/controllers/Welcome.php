@@ -45,25 +45,48 @@ class Welcome extends CI_Controller {
 	/** Get Quran Chapters and About them */
 	function getQuranChapters($chapter='') {
 		$chapters = $this->get_quran_chapters($chapter);
-		// echo "<pre>"; print_r($chapters);die;
+		// echo "<pre>"; print_r($chapters);
 		$final_arr = array();
-		foreach($chapters->chapters as $key => $value) {
-			$final_arr[$key]['id'] = $value->id;
-			$final_arr[$key]['name_arabic'] = '"'.$value->name_arabic.'"';
-			$final_arr[$key]['name_english'] = '"'.$value->name_simple.'"';
-			$final_arr[$key]['name_complex'] = '"'.$value->name_complex.'"';
-			$final_arr[$key]['Bismillah_pre'] = (empty($value->bismillah_pre))?0: $value->bismillah_pre;
-			$final_arr[$key]['verses'] = $value->verses_count;
-			$final_arr[$key]['reveal_order'] = $value->revelation_order;
-			$final_arr[$key]['reveal_place'] = '"'.$value->revelation_place.'"';
+		// echo '<pre>';print_r($_chapters);
+
+		/** For All chapters */
+		if(isset($chapters->chapters)){
+			foreach($chapters->chapters as $key => $value) {
+				$final_arr[$key]['id'] = $value->id;
+				$final_arr[$key]['name_arabic'] = '"'.$value->name_arabic.'"';
+				$final_arr[$key]['name_english'] = '"'.$value->name_simple.'"';
+				$final_arr[$key]['name_complex'] = '"'.$value->name_complex.'"';
+				$final_arr[$key]['Bismillah_pre'] = (empty($value->bismillah_pre))?0: $value->bismillah_pre;
+				$final_arr[$key]['verses'] = $value->verses_count;
+				$final_arr[$key]['reveal_order'] = $value->revelation_order;
+				$final_arr[$key]['reveal_place'] = '"'.$value->revelation_place.'"';
+			}
+		}
+
+		/** For 1 specific chapter */
+		else if(isset($chapters->chapter)){
+			// echo '<pre>';print_r($chapters->chapter);
+			$final_arr['id'] = $chapters->chapter->id;
+			$final_arr['name_arabic'] = '"'.$chapters->chapter->name_arabic.'"';
+			$final_arr['name_english'] = '"'.$chapters->chapter->name_simple.'"';
+			$final_arr['name_complex'] = '"'.$chapters->chapter->name_complex.'"';
+			$final_arr['Bismillah_pre'] = (empty($chapters->chapter->bismillah_pre))?0: $chapters->chapter->bismillah_pre;
+			$final_arr['verses'] = $chapters->chapter->verses_count;
+			$final_arr['reveal_order'] = $chapters->chapter->revelation_order;
+			$final_arr['reveal_place'] = '"'.$chapters->chapter->revelation_place.'"';
+		}
+
+		/** For not Data */
+		else {
+			$this->add_in_api_collection($final_arr);
 		}
 		$final_arr = array(
 			'Quran_chapters'=> $final_arr,
 		);
 		// echo '<pre>';print_r($final_arr['Quran_chapters']);
 		$this->add_in_api_collection($final_arr);
-
 	}
+	
 	function callAPI($method, $url, $header = null, $data = false)
 	{
 		if ($header == null) {
@@ -115,7 +138,7 @@ class Welcome extends CI_Controller {
 	}
 /** from m_welcomes */
 	//////////////////////////////  1st  ////////////////////////////////////////////
-	function add_in_api_collection($array) {
+	function add_in_api_collection($array1) {
 		$data_entry_check=0;
 		$insert_globals = array(
 			'countries' => array(
@@ -127,25 +150,37 @@ class Welcome extends CI_Controller {
 				'duplicates' => '`name_arabic`=VALUES(`name_arabic`), `name_english`=VALUES(`name_english`), `name_complex`=VALUES(`name_complex`), `reveal_place`=VALUES(`reveal_place`)',
 			),
 		);
+
 		/** Necessory to use DataBase  */
 		$this->load->database();
-		// echo '<pre>'; print_r($array);
-		foreach ($array as $table_name => $data) {
+		// echo '<pre>'; print($array_size);die;
+
+		foreach ($array1 as $table_name => $data) {
+		$array_size = count($data);
 			// print_r($table_name);
 			// echo'<pre>'; print_r($data);
-			foreach($data as $arrayIndex => $eacharray) {
-				// foreach($eacharray as $key => $value) {
+
+		/** If array size is greater than 1 */
+			if($array_size > 1) {
+				foreach($data as $arrayIndex => $eacharray) {
 					// echo'<pre>';print_r($eacharray);
 					// $sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (" . ($value['id'].','.$value['name'].','.$value['isocode']) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
 					$sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (".implode(',',$eacharray) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
 					// echo $sql; 
 					$data_entry_check = $this->db->query($sql);
-				// }
-				
-			}
-			if($data_entry_check!=0){
+				}
 				echo $table_name." data has successfully updated.";
-			}else{ echo $table_name." data has not stored.";}
+			} 
+
+		/** If array size is 1*/ 
+			else if($array_size == 1){
+				$sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (".implode(',',$data) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
+				$this->db->query($sql);
+				echo $table_name." data has successfully updated.";
+			} 
+
+		/** If not exists OR not stored*/
+			else { echo 'Data has not stored.'; }
 		}
 	}
 
