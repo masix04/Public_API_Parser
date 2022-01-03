@@ -87,6 +87,112 @@ class Welcome extends CI_Controller {
 		$this->add_in_api_collection($final_arr);
 	}
 	
+	function getLanguages($lang='') {
+		// echo 'language: '.$lang."\n";
+		$languages_and_info = $this->get_languages($lang);
+		$final_arr = array();
+		// print_r($languages_and_info->languages);
+		if(isset($languages_and_info->languages)){
+			$index=0;
+			// $final_arr
+			foreach($languages_and_info->languages as $language) {
+				// echo $index;
+				$final_arr['languages'][$index]['id'] = $language->id;
+				$final_arr['languages'][$index]['name'] = "'".$language->name."'";
+				$final_arr['languages'][$index]['iso_code'] = "'".$language->iso_code."'";
+				$final_arr['languages'][$index]['native_name'] = "'".$language->native_name."'";
+				$final_arr['languages'][$index]['write_direction'] = "'".$language->direction."'";
+				$index++;
+			}
+		}
+		// print_r($final_arr);die;
+		$this->add_in_api_collection($final_arr);
+		
+	}
+	/**
+	 *  IN-PROGESS -- 7:03pm Monday Jan 3 2022
+	 *  BACK-TO-CONTINUE -- 10:03am Tuesday 4 2022
+	 */
+	function getDetailsAgainstSearchedWordInQuran($word='Allah', $size=1, $pagination_pages=1, $language='en') {
+		$get_searched = $this->quran_word_search($word, $size, $pagination_pages, $language);
+		$formated_1_array = array();
+		// print_r($get_searched->search);
+		if(isset($get_searched->search)){
+			$results_index=$words_index=0;
+			foreach($get_searched as $searched) {
+				$formated_1_array['searched_key'] = $searched->query;
+				$formated_1_array['occur_times'] = $searched->total_results;
+				foreach($searched->results as $result) {
+					$formated_1_array['occurance_details'][$results_index]['verse'] = $result->verse_key;
+					$formated_1_array['occurance_details'][$results_index]['id'] = $result->verse_id;
+					$formated_1_array['occurance_details'][$results_index]['ayat'] = $result->text;
+					// print(count($result->words).' -=-> ');
+					foreach($result->words as $word) {
+						// print($word->char_type.' - ');
+						$formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text'] = $word->text;
+						$words_index++; /** NOTE: Inside OBJECT, iterate The arrays - $WORD-COUNT = ++ */
+					}
+					$words_index=0;	/** NOTE: Back to 0, For next 'Object' */
+					foreach($result->translations as $translation) {
+						$formated_1_array['occurance_details'][$results_index]['translation_details']['translation'] = $translation->text;
+						$formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name'] = $translation->name;
+						$formated_1_array['occurance_details'][$results_index]['translation_details']['language'] = $translation->language_name;
+					}
+					$results_index++; /** NOTE: Inside OBJECT, iterate The arrays - $RESULTS-COUNT = ++ */
+				}
+			}
+		}
+		$searched_id_value = $this->getSearchedIdCount();
+		// print $searched_id_value->id_value;die;
+		$final_arr = array();
+		if(!empty($formated_1_array)) {
+			// print_r($formated_1_array);
+			$results_index=$words_index=0;
+			foreach($get_searched as $searched) {
+				if (strpos($formated_1_array['searched_key'], "'") !== FALSE) {
+					$formated_1_array['searched_key'] = str_replace("'", "\'", $formated_1_array['searched_key']);
+				}
+				$final_arr['srch_searched_keys'][] = 
+						($searched_id_value->id_value+1).
+					",'".$formated_1_array['searched_key']."',".
+						$formated_1_array['occur_times'];
+						$index_ayat_id=1;
+				foreach($searched->results as $result) {
+					if (strpos($formated_1_array['occurance_details'][$results_index]['ayat'], "'") !== FALSE) {
+						echo "\n==========".$formated_1_array['occurance_details'][$results_index]['ayat']."========\n";
+						$formated_1_array['occurance_details'][$results_index]['ayat'] = str_replace("'", "\'", $formated_1_array['occurance_details'][$results_index]['ayat']);
+					}
+					if (strpos($formated_1_array['occurance_details'][$results_index]['translation_details']['translation'], "'") !== FALSE) {
+						$formated_1_array['occurance_details'][$results_index]['translation_details']['translation'] = str_replace("'", "\'", $formated_1_array['occurance_details'][$results_index]['translation_details']['translation']);
+					}
+					if (strpos($formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name'], "'") !== FALSE) {
+						$formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name'] = str_replace("'", "\'", $formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name']);
+					}
+					$final_arr['srch_result_occur_details'][] = 
+						$formated_1_array['occurance_details'][$results_index]['id'].",".
+						($searched_id_value->id_value+1).
+					",'".$formated_1_array['occurance_details'][$results_index]['verse']."',".
+						$index_ayat_id.
+					',"'.$formated_1_array['occurance_details'][$results_index]['ayat'].'"'.
+					",'".$formated_1_array['occurance_details'][$results_index]['translation_details']['translation']."'".
+					",'".$formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name']."'".
+					",'".$formated_1_array['occurance_details'][$results_index]['translation_details']['language']."'";
+					foreach($result->words as $word) {
+						$final_arr['srch_word_details'][] = 
+							$index_ayat_id.
+						",'".$formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text']."'".
+						$words_index++; /** NOTE: Inside OBJECT, iterate The arrays - $WORD-COUNT = ++ */
+					}
+					$words_index=0;	/** NOTE: Back to 0, For next 'Object' */
+					$results_index++; /** NOTE: Inside OBJECT, iterate The arrays - $RESULTS-COUNT = ++ */
+					$index_ayat_id++;
+				}
+			}
+		}
+		// print_r($final_arr);
+		$this->add_in_api_collection($final_arr);
+	}
+
 	function callAPI($method, $url, $header = null, $data = false)
 	{
 		if ($header == null) {
@@ -130,16 +236,51 @@ class Welcome extends CI_Controller {
 		$url = "https://api.quran.com/api/v4/chapters/".$chapter;
 		// echo $url;die;
 		$response = $this->callAPI('GET', $url, null);
-
+		// print_r($response);
 		if(!$response) {
 			return false;
 		}
 		return $response;
 	}
+	function get_languages($language='ar') { /** Defualt language set to Arabic */
+		$url = "https://api.quran.com/api/v4/resources/languages?language=$language";
+		// echo $url;
+		$response = $this->callAPI('GET', $url, null);
+		// print_r($response); /**  It shows undefined characters ; WHILE showing on web */
+		if(!$response) {
+			return false;
+		}
+		// echo urlencode("تجربة");
+		return $response;
+	}
+	function quran_word_search($word, $size, $pagination_pages, $language) {
+		$url = "https://api.quran.com/api/v4/search?q=$word&size=$size&page=$pagination_pages&language=$language";
+		// echo $url;
+		$response = $this->callAPI('GET', $url, null);
+		// print_r($response);
+		if(!$response) {
+			return false;
+		}
+		return $response;
+	}
+	function getSearchedIdCount() {
+		$this->load->database();
+
+		$sql = "SELECT COUNT(*) AS id_value FROM `srch_searched_keys`";
+		$value = $this->db->query($sql);
+		/**
+		 * NOTE: LEARN => $value => this will give a whole DB object - AVOID using THIS.
+		 * NOTE: LEARN => $value->row() => Function gives 1 row from query result
+		 * NOTE: LEANR -> $value->return_array() => Function gives whole Array from query result
+		 */
+		return($value->row());
+	}
+
 /** from m_welcomes */
 	//////////////////////////////  1st  ////////////////////////////////////////////
 	function add_in_api_collection($array1) {
 		$data_entry_check=0;
+
 		$insert_globals = array(
 			'countries' => array(
 				'keys' => '`id`,`name`,`isocode`',
@@ -149,6 +290,24 @@ class Welcome extends CI_Controller {
 				'keys' => '`id`, `name_arabic`, `name_english`, `name_complex`, `bismillah_pre`, `verses`, `reveal_order`, `reveal_place`',
 				'duplicates' => '`name_arabic`=VALUES(`name_arabic`), `name_english`=VALUES(`name_english`), `name_complex`=VALUES(`name_complex`), `reveal_place`=VALUES(`reveal_place`)',
 			),
+			'languages' => array(
+				'keys' => '`id`,`name`,`iso_code`,`native_name`,`write_direction`',
+				'duplicates' => '`name`=VALUES(`name`),`iso_code`=VALUES(`iso_code`),`native_name`=VALUES(`native_name`),`write_direction`=VALUES(`write_direction`)',
+			),
+			/** PAIR Towards Below */
+			'srch_searched_keys' => array(
+				'keys' => '`id`,`searched_key`,`occur_times`',
+				'duplicates' => '`searched_key`=VALUES(`searched_key`),`occur_times`=VALUES(`occur_times`)',
+			),
+			'srch_result_occur_details' => array(
+				'keys' => '`id`,`searched_id`,`verse`,`ayat_id`,`ayat`,`translation`,`translator`,`language`',
+				'duplicates' => '`searched_id`=VALUES(`searched_id`),`verse`=VALUES(`verse`),`ayat`=VALUES(`ayat`),`translation`=VALUES(`translation`),`translator`=VALUES(`translator`),`language`=VALUES(`language`)'
+			),
+			'srch_word_details' => array(
+				'keys' => '`id`,`ayaat_id`,`searched_id`,`word`',
+				'duplicates' => '`ayaat_id`=VALUES(`ayaat_id`),`searched_id`=VALUES(`searched_id`),`word`=VALUES(`word`)',
+			),
+			/** PAIR Towards Above */
 		);
 
 		/** Necessory to use DataBase  */
@@ -158,15 +317,20 @@ class Welcome extends CI_Controller {
 		foreach ($array1 as $table_name => $data) {
 		$array_size = count($data);
 			// print_r($table_name);
-			// echo'<pre>'; print_r($data);
+			// echo'<pre>'; print_r($data);die;
 
 		/** If array size is greater than 1 */
 			if($array_size > 1) {
 				foreach($data as $arrayIndex => $eacharray) {
-					// echo'<pre>';print_r($eacharray);
+					if(gettype($eacharray)=='string'){ 
+						$eacharray = explode(',',$eacharray);
+						// $sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (".implode(',',$eacharray) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
+
+					}
+					// echo"\n";print_r($eacharray);echo "\n----------\n\n\n\n----------\n";
 					// $sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (" . ($value['id'].','.$value['name'].','.$value['isocode']) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
 					$sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (".implode(',',$eacharray) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
-					// echo $sql; 
+					// echo $sql;die; 
 					$data_entry_check = $this->db->query($sql);
 				}
 				echo $table_name." data has successfully updated.";
@@ -174,6 +338,7 @@ class Welcome extends CI_Controller {
 
 		/** If array size is 1*/ 
 			else if($array_size == 1){
+				// echo"\n";print_r(implode($data));echo "\n----------\n\n\n\n----------\n";
 				$sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (".implode(',',$data) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
 				$this->db->query($sql);
 				echo $table_name." data has successfully updated.";
