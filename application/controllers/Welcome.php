@@ -87,6 +87,64 @@ class Welcome extends CI_Controller {
 		$this->add_in_api_collection($final_arr);
 	}
 	
+	function getLanguages($lang='') {
+		// echo 'language: '.$lang."\n";
+		$languages_and_info = $this->get_languages($lang);
+		$final_arr = array();
+		// print_r($languages_and_info->languages);
+		if(isset($languages_and_info->languages)){
+			$index=0;
+			// $final_arr
+			foreach($languages_and_info->languages as $language) {
+				// echo $index;
+				$final_arr['languages'][$index]['id'] = $language->id;
+				$final_arr['languages'][$index]['name'] = "'".$language->name."'";
+				$final_arr['languages'][$index]['iso_code'] = "'".$language->iso_code."'";
+				$final_arr['languages'][$index]['native_name'] = "'".$language->native_name."'";
+				$final_arr['languages'][$index]['write_direction'] = "'".$language->direction."'";
+				$index++;
+			}
+		}
+		// print_r($final_arr);die;
+		$this->add_in_api_collection($final_arr);
+		
+	}
+	/**
+	 *  IN-PROGESS -- 7:03pm Monday Jan 3 2022
+	 */
+	function getDetailsAgainstSearchedWordInQuran($word='Allah', $size=1, $pagination_pages=1, $language='en') {
+		$get_searched = $this->quran_word_search($word, $size, $pagination_pages, $language);
+		$final_arr = array();
+		// print_r($get_searched->search);
+
+		if(isset($get_searched->search)){
+			foreach($get_searched as $searched) {
+				$final_arr['key'] = $searched->query;
+				$final_arr['times'] = $searched->total_results;
+				foreach($searched->results as $result) {
+					$final_arr['occurance_details']['verse'] = $result->verse_key;
+					$final_arr['occurance_details']['id'] = $result->verse_id;
+					$final_arr['occurance_details']['ayat'] = $result->text;
+					foreach($result->words as $word) {
+						$final_arr['occurance_details']['word_list']['text'] = $word->text;
+					}
+					foreach($result->translations as $translation) {
+						$final_arr['occurance_details']['translation_details']['translation'] = $translation->text;
+						$final_arr['occurance_details']['translation_details']['translator_name'] = $translation->name;
+						$final_arr['occurance_details']['translation_details']['language'] = $translation->language_name;
+					}
+				}
+			}
+		}
+		print_r($final_arr);die;
+
+		$final_arr = array(
+			'searched_word_details'=> array(
+				
+			)
+		);
+	}
+
 	function callAPI($method, $url, $header = null, $data = false)
 	{
 		if ($header == null) {
@@ -130,7 +188,28 @@ class Welcome extends CI_Controller {
 		$url = "https://api.quran.com/api/v4/chapters/".$chapter;
 		// echo $url;die;
 		$response = $this->callAPI('GET', $url, null);
-
+		// print_r($response);
+		if(!$response) {
+			return false;
+		}
+		return $response;
+	}
+	function get_languages($language='ar') { /** Defualt language set to Arabic */
+		$url = "https://api.quran.com/api/v4/resources/languages?language=$language";
+		// echo $url;
+		$response = $this->callAPI('GET', $url, null);
+		// print_r($response); /**  It shows undefined characters ; WHILE showing on web */
+		if(!$response) {
+			return false;
+		}
+		// echo urlencode("تجربة");
+		return $response;
+	}
+	function quran_word_search($word, $size, $pagination_pages, $language) {
+		$url = "https://api.quran.com/api/v4/search?q=$word&size=$size&page=$pagination_pages&language=$language";
+		// echo $url;
+		$response = $this->callAPI('GET', $url, null);
+		// print_r($response);
 		if(!$response) {
 			return false;
 		}
@@ -140,6 +219,7 @@ class Welcome extends CI_Controller {
 	//////////////////////////////  1st  ////////////////////////////////////////////
 	function add_in_api_collection($array1) {
 		$data_entry_check=0;
+
 		$insert_globals = array(
 			'countries' => array(
 				'keys' => '`id`,`name`,`isocode`',
@@ -149,6 +229,10 @@ class Welcome extends CI_Controller {
 				'keys' => '`id`, `name_arabic`, `name_english`, `name_complex`, `bismillah_pre`, `verses`, `reveal_order`, `reveal_place`',
 				'duplicates' => '`name_arabic`=VALUES(`name_arabic`), `name_english`=VALUES(`name_english`), `name_complex`=VALUES(`name_complex`), `reveal_place`=VALUES(`reveal_place`)',
 			),
+			'languages' => array(
+				'keys' => '`id`,`name`,`iso_code`,`native_name`,`write_direction`',
+				'duplicates' => '`name`=VALUES(`name`),`iso_code`=VALUES(`iso_code`),`native_name`=VALUES(`native_name`),`write_direction`=VALUES(`write_direction`)'
+			)
 		);
 
 		/** Necessory to use DataBase  */
@@ -166,7 +250,7 @@ class Welcome extends CI_Controller {
 					// echo'<pre>';print_r($eacharray);
 					// $sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (" . ($value['id'].','.$value['name'].','.$value['isocode']) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
 					$sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (".implode(',',$eacharray) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
-					// echo $sql; 
+					// echo $sql;die; 
 					$data_entry_check = $this->db->query($sql);
 				}
 				echo $table_name." data has successfully updated.";
