@@ -111,17 +111,36 @@ class Welcome extends CI_Controller {
 	}
 	/**
 	 *  IN-PROGESS -- 7:03pm Monday Jan 3 2022
+	 * 
 	 *  BACK-TO-CONTINUE -- 10:03am Tuesday 4 2022
+	 *  IN-PROGRESS -- 7:25pm Tuesday Jan 4 2022
+	 * 
+	 *  BACK-TO-CONTINUE -- 10:20am Wednesday Jan 5 2022
+	 *  STOPPED -- 10:55am
+	 * 
+	 *  BACK-TO-CONTINUE -- 9:26pm Thursday Jan 6 2022
+	 * 	STOPPED -- 10:33AM Wednesday Jan 19 2022
+	 * 
 	 */
 	function getDetailsAgainstSearchedWordInQuran($word='Allah', $size=1, $pagination_pages=1, $language='en') {
 		$get_searched = $this->quran_word_search($word, $size, $pagination_pages, $language);
 		$formated_1_array = array();
+		echo "Get Data\n";
+		// echo json_encode($get_searched);
+	// } 
+		// return $formated_1_array;
 		// print_r($get_searched->search);
 		if(isset($get_searched->search)){
 			$results_index=$words_index=0;
+			/** NOTE: Get Confirmation & Count of Searched.
+			 *       So, Next time the id will store will be the +1 of it. 
+			 */
+			$searched_id_value = $this->getSearchedIdCount();
+
 			foreach($get_searched as $searched) {
-				$formated_1_array['searched_key'] = $searched->query;
-				$formated_1_array['occur_times'] = $searched->total_results;
+				$formated_1_array['srch_searched_keys'][]=
+					"'" . $searched->query . "'," .
+					$searched->total_results;
 				foreach($searched->results as $result) {
 					$formated_1_array['occurance_details'][$results_index]['verse'] = $result->verse_key;
 					$formated_1_array['occurance_details'][$results_index]['id'] = $result->verse_id;
@@ -141,12 +160,15 @@ class Welcome extends CI_Controller {
 					$results_index++; /** NOTE: Inside OBJECT, iterate The arrays - $RESULTS-COUNT = ++ */
 				}
 			}
+			print_r($formated_1_array);
+			echo "\n";
 		}
 		$searched_id_value = $this->getSearchedIdCount();
-		// print $searched_id_value->id_value;die;
+		print '[searched_id_value -> id_value] => '.$searched_id_value->id_value."\n";
 		$final_arr = array();
+
 		if(!empty($formated_1_array)) {
-			// print_r($formated_1_array);
+			print_r($formated_1_array);
 			$results_index=$words_index=0;
 			foreach($get_searched as $searched) {
 				if (strpos($formated_1_array['searched_key'], "'") !== FALSE) {
@@ -178,9 +200,14 @@ class Welcome extends CI_Controller {
 					",'".$formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name']."'".
 					",'".$formated_1_array['occurance_details'][$results_index]['translation_details']['language']."'";
 					foreach($result->words as $word) {
+						if (strpos($formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text'], "'") !== FALSE) {
+							$formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text'] = str_replace("'", "\'", $formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text']);
+						}
 						$final_arr['srch_word_details'][] = 
-							$index_ayat_id.
-						",'".$formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text']."'".
+							($words_index+1).
+						",".$index_ayat_id.
+						",".($searched_id_value->id_value+1).
+						",'".$formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text']."'";
 						$words_index++; /** NOTE: Inside OBJECT, iterate The arrays - $WORD-COUNT = ++ */
 					}
 					$words_index=0;	/** NOTE: Back to 0, For next 'Object' */
@@ -268,6 +295,8 @@ class Welcome extends CI_Controller {
 
 		$sql = "SELECT COUNT(*) AS id_value FROM `srch_searched_keys`";
 		$value = $this->db->query($sql);
+		print_r($value);
+
 		/**
 		 * NOTE: LEARN => $value => this will give a whole DB object - AVOID using THIS.
 		 * NOTE: LEARN => $value->row() => Function gives 1 row from query result
@@ -305,7 +334,7 @@ class Welcome extends CI_Controller {
 			),
 			'srch_word_details' => array(
 				'keys' => '`id`,`ayaat_id`,`searched_id`,`word`',
-				'duplicates' => '`ayaat_id`=VALUES(`ayaat_id`),`searched_id`=VALUES(`searched_id`),`word`=VALUES(`word`)',
+				'duplicates' => '`id`=VALUES(`id`),`ayaat_id`=VALUES(`ayaat_id`),`word`=VALUES(`word`)',
 			),
 			/** PAIR Towards Above */
 		);
@@ -317,7 +346,7 @@ class Welcome extends CI_Controller {
 		foreach ($array1 as $table_name => $data) {
 		$array_size = count($data);
 			// print_r($table_name);
-			// echo'<pre>'; print_r($data);die;
+			echo'<pre>'; print_r($data);
 
 		/** If array size is greater than 1 */
 			if($array_size > 1) {
@@ -333,7 +362,7 @@ class Welcome extends CI_Controller {
 					// echo $sql;die; 
 					$data_entry_check = $this->db->query($sql);
 				}
-				echo $table_name." data has successfully updated.";
+				echo $table_name." data has successfully updated.\n";
 			} 
 
 		/** If array size is 1*/ 
@@ -341,7 +370,7 @@ class Welcome extends CI_Controller {
 				// echo"\n";print_r(implode($data));echo "\n----------\n\n\n\n----------\n";
 				$sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (".implode(',',$data) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
 				$this->db->query($sql);
-				echo $table_name." data has successfully updated.";
+				echo $table_name." data has successfully updated.\n";
 			} 
 
 		/** If not exists OR not stored*/
@@ -350,3 +379,94 @@ class Welcome extends CI_Controller {
 	}
 
 }
+ 
+
+/*
+***********************************************
+For Saving Work.
+
+***********************************************
+if(!empty($formated_1_array)) {
+			// print_r($formated_1_array);
+			$results_index=$words_index=0;
+			foreach($get_searched as $searched) {
+				if (strpos($formated_1_array['searched_key'], "'") !== FALSE) {
+					$formated_1_array['searched_key'] = str_replace("'", "\'", $formated_1_array['searched_key']);
+				}
+				$final_arr['srch_searched_keys'][] = 
+						($searched_id_value->id_value+1).
+					",'".$formated_1_array['searched_key']."',".
+						$formated_1_array['occur_times'];
+						$index_ayat_id=1;
+				foreach($searched->results as $result) {
+					if (strpos($formated_1_array['occurance_details'][$results_index]['ayat'], "'") !== FALSE) {
+						echo "\n==========".$formated_1_array['occurance_details'][$results_index]['ayat']."========\n";
+						$formated_1_array['occurance_details'][$results_index]['ayat'] = str_replace("'", "\'", $formated_1_array['occurance_details'][$results_index]['ayat']);
+					}
+					if (strpos($formated_1_array['occurance_details'][$results_index]['translation_details']['translation'], "'") !== FALSE) {
+						$formated_1_array['occurance_details'][$results_index]['translation_details']['translation'] = str_replace("'", "\'", $formated_1_array['occurance_details'][$results_index]['translation_details']['translation']);
+					}
+					if (strpos($formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name'], "'") !== FALSE) {
+						$formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name'] = str_replace("'", "\'", $formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name']);
+					}
+					$final_arr['srch_result_occur_details'][] = 
+						$formated_1_array['occurance_details'][$results_index]['id'].",".
+						($searched_id_value->id_value+1).
+					",'".$formated_1_array['occurance_details'][$results_index]['verse']."',".
+						$index_ayat_id.
+					',"'.$formated_1_array['occurance_details'][$results_index]['ayat'].'"'.
+					",'".$formated_1_array['occurance_details'][$results_index]['translation_details']['translation']."'".
+					",'".$formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name']."'".
+					",'".$formated_1_array['occurance_details'][$results_index]['translation_details']['language']."'";
+					foreach($result->words as $word) {
+						if (strpos($formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text'], "'") !== FALSE) {
+							$formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text'] = str_replace("'", "\'", $formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text']);
+						}
+						$final_arr['srch_word_details'][] = 
+							($words_index+1).
+						",".$index_ayat_id.
+						",".($searched_id_value->id_value+1).
+						",'".$formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text']."'";
+						$words_index++; /** NOTE: Inside OBJECT, iterate The arrays - $WORD-COUNT = ++ */
+						/*
+					}
+					$words_index=0;	/** NOTE: Back to 0, For next 'Object' *//*
+					$results_index++; /** NOTE: Inside OBJECT, iterate The arrays - $RESULTS-COUNT = ++ *//*
+					$index_ayat_id++;
+				}
+			}
+		}
+
+*/
+/*
+
+*********************************
+First Function	 is Saving
+
+********************************
+if(isset($get_searched->search)){
+	$results_index=$words_index=0;
+	foreach($get_searched as $searched) {
+		$formated_1_array['searched_key'] = $searched->query;
+		$formated_1_array['occur_times'] = $searched->total_results;
+		foreach($searched->results as $result) {
+			$formated_1_array['occurance_details'][$results_index]['verse'] = $result->verse_key;
+			$formated_1_array['occurance_details'][$results_index]['id'] = $result->verse_id;
+			$formated_1_array['occurance_details'][$results_index]['ayat'] = $result->text;
+			// print(count($result->words).' -=-> ');
+			foreach($result->words as $word) {
+				// print($word->char_type.' - ');
+				$formated_1_array['occurance_details'][$results_index]['word_list'][$words_index]['text'] = $word->text;
+				$words_index++; /** NOTE: Inside OBJECT, iterate The arrays - $WORD-COUNT = ++ */
+			/*}
+			$words_index=0;	/** NOTE: Back to 0, For next 'Object' */
+			/*foreach($result->translations as $translation) {
+				$formated_1_array['occurance_details'][$results_index]['translation_details']['translation'] = $translation->text;
+				$formated_1_array['occurance_details'][$results_index]['translation_details']['translator_name'] = $translation->name;
+				$formated_1_array['occurance_details'][$results_index]['translation_details']['language'] = $translation->language_name;
+			}
+			$results_index++; /** NOTE: Inside OBJECT, iterate The arrays - $RESULTS-COUNT = ++ */
+		/*}
+	}
+}
+*/
