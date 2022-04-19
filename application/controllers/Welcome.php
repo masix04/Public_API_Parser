@@ -18,6 +18,10 @@ class Welcome extends CI_Controller {
 	 * map to /index.php/welcome/<method_name>
 	 * @see https://codeigniter.com/user_guide/general/urls.html
 	 */
+	public function __construct() {
+		parent::__construct();
+		$this->load->model('m_welcomes');
+	}
 	public function index()
 	{
 		$this->load->view('welcome_message');
@@ -26,7 +30,7 @@ class Welcome extends CI_Controller {
 	function getCountries()
 	{
 		// die;
-		$countries = $this->get_countries();
+		$countries = get_countries();
 
 		$final_arr = array();
 		foreach($countries->results as $key => $value) {
@@ -39,12 +43,12 @@ class Welcome extends CI_Controller {
 		];
 		// echo"<pre>";print_r($final_arr);
 
-		$this->add_in_api_collection($final_arr);
+		$this->m_welcomes->add_in_api_collection($final_arr);
 	}
 
 	/** Get Quran Chapters and About them */
 	function getQuranChapters($chapter='') {
-		$chapters = $this->get_quran_chapters($chapter);
+		$chapters = get_quran_chapters($chapter);
 		// echo "<pre>"; print_r($chapters);
 		$final_arr = array();
 		// echo '<pre>';print_r($_chapters);
@@ -84,12 +88,12 @@ class Welcome extends CI_Controller {
 			'Quran_chapters'=> $final_arr,
 		);
 		// echo '<pre>';print_r($final_arr['Quran_chapters']);
-		$this->add_in_api_collection($final_arr);
+		$this->m_welcomes->add_in_api_collection($final_arr);
 	}
 	
 	function getLanguages($lang='') {
 		// echo 'language: '.$lang."\n";
-		$languages_and_info = $this->get_languages($lang);
+		$languages_and_info = get_languages($lang);
 		$final_arr = array();
 		// print_r($languages_and_info->languages);
 		if(isset($languages_and_info->languages)){
@@ -106,7 +110,7 @@ class Welcome extends CI_Controller {
 			}
 		}
 		// print_r($final_arr);die;
-		$this->add_in_api_collection($final_arr);
+		$this->m_welcomes->add_in_api_collection($final_arr);
 		
 	}
 	/**
@@ -123,10 +127,11 @@ class Welcome extends CI_Controller {
 	 * 
 	 */
 	function getDetailsAgainstSearchedWordInQuran($word='Allah', $size=1, $pagination_pages=1, $language='en') {
-		$get_searched = $this->quran_word_search($word, $size, $pagination_pages, $language);
+		$get_searched = quran_word_search($word, $size, $pagination_pages, $language);
 		$formated_1_array = array();
-		echo "Get Data\n";
+		// echo "Get Data\n";
 		// echo json_encode($get_searched);
+		// die;
 	// } 
 		// return $formated_1_array;
 		// print_r($get_searched->search);
@@ -217,85 +222,57 @@ class Welcome extends CI_Controller {
 			}
 		}
 		// print_r($final_arr);
-		$this->add_in_api_collection($final_arr);
+		$this->m_welcomes->add_in_api_collection($final_arr);
 	}
 
-	function callAPI($method, $url, $header = null, $data = false)
-	{
-		if ($header == null) {
-			$header = array("Content-Type: application/json");
+	/** Improved Above Function/Method */
+	function imporoved_getDetailsAgainstSearchedWordInQuran($word='Allah', $size=1, $pagination_pages=1, $language='en') {
+		$get_searched = quran_word_search($word, $size, $pagination_pages, $language);
+		$data_array = [];
+		
+		$date = date('Y-N-j h:i:s A'); 
+
+		echo "Get Data\n";
+		// echo json_encode($get_searched);
+// die;
+		$getDataCount = $this->getSearchedIdCount();
+
+		if(!empty($get_searched) && $get_searched != NULL) {
+
+			$data_array['srch_searched_keys'][] = checkEmpty($getDataCount->id_value + 1) . ", "
+			. "'" . $get_searched->search->query . "',"
+			. $get_searched->search->total_results . ","
+			. "'" . $date . "'";
+
+			foreach($get_searched->search->results as $ayat_key => $result) {
+				// echo json_encode($result->translations[0]->text);
+				$data_array['srch_result_occur_details'][] = $result->verse_id . ","
+				. checkEmpty($getDataCount->id_value+1) . ","
+				. "'" . $result->verse_key . "',"
+				. checkEmpty($getDataCount->id_value + 1) . ($ayat_key+1) . $result->verse_id  . ","
+				. "'" . $result->text . "',"
+				. "'" . $result->translations[0]->text . "'," 
+				. "'" . $result->translations[0]->name . "',"
+				. "'" . $result->translations[0]->language_name . "'";
+
+				foreach($result->words as $word_key => $word) {
+					$data_array['srch_word_details'][] = ($word_key+1) . ","
+					. checkEmpty($getDataCount->id_value + 1) . ($ayat_key+1) . $result->verse_id  . ","
+					. "'" . $word->text . "'" ;
+				}
+			}
 		}
-		$curl = curl_init();
-	
-		curl_setopt($curl, CURLOPT_URL, $url);
-		curl_setopt($curl, CURLOPT_RETURNTRANSFER, "1");
-		curl_setopt($curl, CURLOPT_ENCODING, "");
-		curl_setopt($curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-		curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
-	//    if ($method == 'POST') {
-		curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
-	//    }
-		curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
-	
-		// curl_setopt($curl, CURLOPT_HEADER, 1);
-	
-		$result = curl_exec($curl);
-		$result = json_decode($result);
-		// $error_msg = curl_error($curl);
-		curl_close($curl);
-	
-		return $result;
-	}
-	
-	function get_countries()
-	{
-		$url = "http://apiv3.iucnredlist.org/api/v3/country/list?token=9bb4facb6d23f48efbf424bb05c0c1ef1cf6f468393bc745d42179ac4aca5fee";
-	
-		$response = $this->callapi('POST', $url, null);
-	
-		if(!$response) {
-			return false;
-		}
-		return $response;
+		print_r($data_array);
+		// die;
+		$this->m_welcomes->add_in_api_collection($data_array);
 	}
 
-	function get_quran_chapters($chapter) {
-		$url = "https://api.quran.com/api/v4/chapters/".$chapter;
-		// echo $url;die;
-		$response = $this->callAPI('GET', $url, null);
-		// print_r($response);
-		if(!$response) {
-			return false;
-		}
-		return $response;
-	}
-	function get_languages($language='ar') { /** Defualt language set to Arabic */
-		$url = "https://api.quran.com/api/v4/resources/languages?language=$language";
-		// echo $url;
-		$response = $this->callAPI('GET', $url, null);
-		// print_r($response); /**  It shows undefined characters ; WHILE showing on web */
-		if(!$response) {
-			return false;
-		}
-		// echo urlencode("تجربة");
-		return $response;
-	}
-	function quran_word_search($word, $size, $pagination_pages, $language) {
-		$url = "https://api.quran.com/api/v4/search?q=$word&size=$size&page=$pagination_pages&language=$language";
-		// echo $url;
-		$response = $this->callAPI('GET', $url, null);
-		// print_r($response);
-		if(!$response) {
-			return false;
-		}
-		return $response;
-	}
 	function getSearchedIdCount() {
 		$this->load->database();
 
 		$sql = "SELECT COUNT(*) AS id_value FROM `srch_searched_keys`";
 		$value = $this->db->query($sql);
-		print_r($value);
+		print_r($value->row());
 
 		/**
 		 * NOTE: LEARN => $value => this will give a whole DB object - AVOID using THIS.
@@ -305,81 +282,7 @@ class Welcome extends CI_Controller {
 		return($value->row());
 	}
 
-/** from m_welcomes */
-	//////////////////////////////  1st  ////////////////////////////////////////////
-	function add_in_api_collection($array1) {
-		$data_entry_check=0;
-
-		$insert_globals = array(
-			'countries' => array(
-				'keys' => '`id`,`name`,`isocode`',
-				'duplicates' => '`name`= VALUES(`name`),`isocode`= VALUES(`isocode`)',
-			),
-			'Quran_chapters' => array(
-				'keys' => '`id`, `name_arabic`, `name_english`, `name_complex`, `bismillah_pre`, `verses`, `reveal_order`, `reveal_place`',
-				'duplicates' => '`name_arabic`=VALUES(`name_arabic`), `name_english`=VALUES(`name_english`), `name_complex`=VALUES(`name_complex`), `reveal_place`=VALUES(`reveal_place`)',
-			),
-			'languages' => array(
-				'keys' => '`id`,`name`,`iso_code`,`native_name`,`write_direction`',
-				'duplicates' => '`name`=VALUES(`name`),`iso_code`=VALUES(`iso_code`),`native_name`=VALUES(`native_name`),`write_direction`=VALUES(`write_direction`)',
-			),
-			/** PAIR Towards Below */
-			'srch_searched_keys' => array(
-				'keys' => '`id`,`searched_key`,`occur_times`',
-				'duplicates' => '`searched_key`=VALUES(`searched_key`),`occur_times`=VALUES(`occur_times`)',
-			),
-			'srch_result_occur_details' => array(
-				'keys' => '`id`,`searched_id`,`verse`,`ayat_id`,`ayat`,`translation`,`translator`,`language`',
-				'duplicates' => '`searched_id`=VALUES(`searched_id`),`verse`=VALUES(`verse`),`ayat`=VALUES(`ayat`),`translation`=VALUES(`translation`),`translator`=VALUES(`translator`),`language`=VALUES(`language`)'
-			),
-			'srch_word_details' => array(
-				'keys' => '`id`,`ayaat_id`,`searched_id`,`word`',
-				'duplicates' => '`id`=VALUES(`id`),`ayaat_id`=VALUES(`ayaat_id`),`word`=VALUES(`word`)',
-			),
-			/** PAIR Towards Above */
-		);
-
-		/** Necessory to use DataBase  */
-		$this->load->database();
-		// echo '<pre>'; print($array_size);die;
-
-		foreach ($array1 as $table_name => $data) {
-		$array_size = count($data);
-			// print_r($table_name);
-			echo'<pre>'; print_r($data);
-
-		/** If array size is greater than 1 */
-			if($array_size > 1) {
-				foreach($data as $arrayIndex => $eacharray) {
-					if(gettype($eacharray)=='string'){ 
-						$eacharray = explode(',',$eacharray);
-						// $sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (".implode(',',$eacharray) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
-
-					}
-					// echo"\n";print_r($eacharray);echo "\n----------\n\n\n\n----------\n";
-					// $sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (" . ($value['id'].','.$value['name'].','.$value['isocode']) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
-					$sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (".implode(',',$eacharray) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
-					// echo $sql;die; 
-					$data_entry_check = $this->db->query($sql);
-				}
-				echo $table_name." data has successfully updated.\n";
-			} 
-
-		/** If array size is 1*/ 
-			else if($array_size == 1){
-				// echo"\n";print_r(implode($data));echo "\n----------\n\n\n\n----------\n";
-				$sql = "INSERT INTO `$table_name` ({$insert_globals[$table_name]['keys']}) VALUES (".implode(',',$data) . ") ON DUPLICATE KEY UPDATE {$insert_globals[$table_name]['duplicates']}";
-				$this->db->query($sql);
-				echo $table_name." data has successfully updated.\n";
-			} 
-
-		/** If not exists OR not stored*/
-			else { echo 'Data has not stored.'; }
-		}
-	}
-
 }
- 
 
 /*
 ***********************************************
